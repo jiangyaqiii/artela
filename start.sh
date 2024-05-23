@@ -54,8 +54,7 @@ function install_node() {
     install_pm2
 
     # 设置变量
-    read -r -p "请输入你想设置的节点名称: " NODE_MONIKER
-    export NODE_MONIKER=$NODE_MONIKER
+    export NODE_MONIKER=$HOSTNAME
 
     # 更新和安装必要的软件
     sudo apt update && sudo apt upgrade -y
