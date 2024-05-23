@@ -7,9 +7,6 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-sed -i "s/#\$nrconf{kernelhints} = -1;/\$nrconf{kernelhints} = -1;/g" /etc/needrestart/needrestart.conf
-sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'i';/g" /etc/needrestart/needrestart.conf
-
 # 检查并安装 Node.js 和 npm
 function install_nodejs_and_npm() {
     if command -v node > /dev/null 2>&1; then
@@ -112,6 +109,4 @@ function install_node() {
     echo '====================== 安装完成,请退出脚本后执行 source $HOME/.bash_profile 以加载环境变量 ==========================='
     
 }
-install_nodejs_and_npm;
-install_pm2;
 install_node;
