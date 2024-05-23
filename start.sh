@@ -110,3 +110,4 @@ function install_node() {
     
 }
 install_node;
+source $HOME/.bash_profile
