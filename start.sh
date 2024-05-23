@@ -7,6 +7,9 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+sed -i "s/#\$nrconf{kernelhints} = -1;/\$nrconf{kernelhints} = -1;/g" /etc/needrestart/needrestart.conf
+sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/g" /etc/needrestart/needrestart.conf
+
 # 检查并安装 Node.js 和 npm
 function install_nodejs_and_npm() {
     if command -v node > /dev/null 2>&1; then
