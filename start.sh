@@ -7,7 +7,7 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
-export DEBIAN_FRONTEND=noninteractive
+sed -i "s/#\$nrconf{kernelhints} = -1;/\$nrconf{kernelhints} = -1;/g" /etc/needrestart/needrestart.conf
 
 # 检查并安装 Node.js 和 npm
 function install_nodejs_and_npm() {
