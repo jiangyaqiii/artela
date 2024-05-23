@@ -1,7 +1,7 @@
 # artela
 
 安装节点
-wget -O install_node.sh https://raw.githubusercontent.com/jiangyaqiii/artela/main/install_node.sh && chmod +x install_node.sh && ./install_node.sh
+wget -O start.sh https://raw.githubusercontent.com/jiangyaqiii/artela/main/start.sh && chmod +x start.sh && ./start.sh
 
 创建钱包
 wget -O add_wallet.sh https://raw.githubusercontent.com/jiangyaqiii/artela/main/add_wallet.sh && chmod +x add_wallet.sh && ./add_wallet.sh
