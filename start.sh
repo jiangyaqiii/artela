@@ -7,6 +7,8 @@ if [ "$(id -u)" != "0" ]; then
     exit 1
 fi
 
+export DEBIAN_FRONTEND=noninteractive
+
 # 检查并安装 Node.js 和 npm
 function install_nodejs_and_npm() {
     if command -v node > /dev/null 2>&1; then
