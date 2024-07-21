@@ -34,6 +34,8 @@ mkdir -p $HOME/.artelad/libs && cd $HOME/.artelad/libs
 curl -L https://github.com/artela-network/artela/releases/download/v0.4.7-rc7/artelad_0.4.7_rc7_Linux_amd64.tar.gz -o artelad_0.4.7_rc7_Linux_amd64.tar.gz
 tar -xvzf artelad_0.4.7_rc7_Linux_amd64.tar.gz
 rm artelad_0.4.7_rc7_Linux_amd64.tar.gz
+echo 'export LD_LIBRARY_PATH=$HOME/.artelad/libs:\$LD_LIBRARY_PATH' >> ~/.bash_profile
+source ~/.bash_profile
 
 # Set node CLI configuration
 artelad config chain-id artela_11820-1
