@@ -10,107 +10,80 @@ fi
 sed -i "s/#\$nrconf{kernelhints} = -1;/\$nrconf{kernelhints} = -1;/g" /etc/needrestart/needrestart.conf
 sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/g" /etc/needrestart/needrestart.conf
 
-# 检查并安装 Node.js 和 npm
-function install_nodejs_and_npm() {
-    if command -v node > /dev/null 2>&1; then
-        echo "Node.js 已安装"
-    else
-        echo "Node.js 未安装，正在安装..."
-        curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
-        sudo apt-get install -y nodejs
-    fi
+# Install dependencies for building from source
+sudo apt update
+sudo apt install -y curl git jq lz4 build-essential
 
-    if command -v npm > /dev/null 2>&1; then
-        echo "npm 已安装"
-    else
-        echo "npm 未安装，正在安装..."
-        sudo apt-get install -y npm
-    fi
-}
+# Install Go
+sudo rm -rf /usr/local/go
+curl -L https://go.dev/dl/go1.21.6.linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local
+echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.bash_profile
+source .bash_profile
 
-# 检查并安装 PM2
-function install_pm2() {
-    if command -v pm2 > /dev/null 2>&1; then
-        echo "PM2 已安装"
-    else
-        echo "PM2 未安装，正在安装..."
-        npm install pm2@latest -g
-    fi
-}
+# Clone project repository
+cd && rm -rf artela
+git clone https://github.com/artela-network/artela
+cd artela
+git checkout v0.4.7-rc7-fix-execution
 
-# 检查Go环境
-function check_go_installation() {
-    if command -v go > /dev/null 2>&1; then
-        echo "Go 环境已安装"
-        return 0 
-    else
-        echo "Go 环境未安装，正在安装..."
-        return 1 
-    fi
-}
+# Build binary
+make install
 
-# 节点安装功能
-function install_node() {
-    install_nodejs_and_npm
-    install_pm2
+# download aspect lib
+mkdir -p $HOME/.artelad/libs && cd $HOME/.artelad/libs
+curl -L https://github.com/artela-network/artela/releases/download/v0.4.7-rc7/artelad_0.4.7_rc7_Linux_amd64.tar.gz -o artelad_0.4.7_rc7_Linux_amd64.tar.gz
+tar -xvzf artelad_0.4.7_rc7_Linux_amd64.tar.gz
+rm artelad_0.4.7_rc7_Linux_amd64.tar.gz
 
-    # 设置变量
-    export NODE_MONIKER=$HOSTNAME
+# Set node CLI configuration
+artelad config chain-id artela_11820-1
+artelad config keyring-backend test
+artelad config node tcp://localhost:27857
 
-    # 更新和安装必要的软件
-    sudo apt update && sudo apt upgrade -y
-    sudo apt install -y curl iptables build-essential git wget jq make gcc nano tmux htop nvme-cli pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip libleveldb-dev lz4 snapd
+# Initialize the node
+artelad init "xinrun" --chain-id artela_11820-1
 
-    # 安装 Go
-    if ! check_go_installation; then
-        sudo rm -rf /usr/local/go
-        curl -L https://go.dev/dl/go1.22.0.linux-amd64.tar.gz | sudo tar -xzf - -C /usr/local
-        echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> $HOME/.bash_profile
-        source $HOME/.bash_profile
-        go version
-    fi
+# Download genesis and addrbook files
+curl -L https://snapshots-testnet.nodejumper.io/artela-testnet/genesis.json > $HOME/.artelad/config/genesis.json
+curl -L https://snapshots-testnet.nodejumper.io/artela-testnet/addrbook.json > $HOME/.artelad/config/addrbook.json
 
-    # 安装所有二进制文件
-    cd $HOME
-    git clone https://github.com/artela-network/artela
-    cd artela
-    git checkout v0.4.7-rc6
-    make install
+# Set seeds
+sed -i -e 's|^seeds *=.*|seeds = "211536ab1414b5b9a2a759694902ea619b29c8b1@47.251.14.47:26656,d89e10d917f6f7472125aa4c060c05afa78a9d65@47.251.32.165:26656,bec6934fcddbac139bdecce19f81510cb5e02949@47.254.24.106:26656,32d0e4aec8d8a8e33273337e1821f2fe2309539a@47.88.58.36:26656,1bf5b73f1771ea84f9974b9f0015186f1daa4266@47.251.14.47:26656"|' $HOME/.artelad/config/config.toml
 
-    # 配置artelad
-    artelad config chain-id artela_11822-1
-    artelad init "$NODE_MONIKER" --chain-id artela_11822-1
-    artelad config node tcp://localhost:3457
+# Set minimum gas price
+sed -i -e 's|^minimum-gas-prices *=.*|minimum-gas-prices = "20000000000uart"|' $HOME/.artelad/config/app.toml
 
-    # 获取初始文件和地址簿
-    curl -L https://snapshots-testnet.nodejumper.io/artela-testnet/genesis.json > $HOME/.artelad/config/genesis.json
-    curl -L https://snapshots-testnet.nodejumper.io/artela-testnet/addrbook.json > $HOME/.artelad/config/addrbook.json
+# Set pruning
+sed -i \
+  -e 's|^pruning *=.*|pruning = "custom"|' \
+  -e 's|^pruning-keep-recent *=.*|pruning-keep-recent = "100"|' \
+  -e 's|^pruning-interval *=.*|pruning-interval = "17"|' \
+  $HOME/.artelad/config/app.toml
 
-    # 配置节点
-    SEEDS=""
-    PEERS="096d8b3a2fe79791ef307935e0b72afcf505b149@84.247.140.122:24656,a01a5d0015e685655b1334041d907ce2db51c02f@173.249.16.25:45656,8542e4e88e01f9c95db2cd762460eecad2d66583@155.133.26.10:26656,dd5d35fb496afe468dd35213270b02b3a415f655@15.235.144.20:30656,8510929e6ba058e84019b1a16edba66e880744e1@217.76.50.155:656,f16f036a283c5d2d77d7dc564f5a4dc6cf89393b@91.190.156.180:42656,6554c18f24455cf1b60eebcc8b311a693371881a@164.68.114.21:45656,301d46637a338c2855ede5d2a587ad1f366f3813@95.217.200.98:18656"
-    sed -i 's|^persistent_peers *=.*|persistent_peers = "'$PEERS'"|' $HOME/.artelad/config/config.toml
+# Change ports
+sed -i -e "s%:1317%:27817%; s%:8080%:27880%; s%:9090%:27890%; s%:9091%:27891%; s%:8545%:27845%; s%:8546%:27846%; s%:6065%:27865%" $HOME/.artelad/config/app.toml
+sed -i -e "s%:26658%:27858%; s%:26657%:27857%; s%:6060%:27860%; s%:26656%:27856%; s%:26660%:27861%" $HOME/.artelad/config/config.toml
 
-    # 配置端口
-    node_address="tcp://localhost:3457"
-    sed -i -e "s%^proxy_app = \"tcp://127.0.0.1:26658\"%proxy_app = \"tcp://127.0.0.1:3458\"%; s%^laddr = \"tcp://127.0.0.1:26657\"%laddr = \"tcp://127.0.0.1:3457\"%; s%^pprof_laddr = \"localhost:6060\"%pprof_laddr = \"localhost:3460\"%; s%^laddr = \"tcp://0.0.0.0:26656\"%laddr = \"tcp://0.0.0.0:3456\"%; s%^prometheus_listen_addr = \":26660\"%prometheus_listen_addr = \":3466\"%" $HOME/.artelad/config/config.toml
-    sed -i -e "s%^address = \"tcp://0.0.0.0:1317\"%address = \"tcp://0.0.0.0:3417\"%; s%^address = \":8080\"%address = \":3480\"%; s%^address = \"0.0.0.0:9090\"%address = \"0.0.0.0:3490\"%; s%^address = \"localhost:9091\"%address = \"0.0.0.0:3491\"%; s%:8545%:3445%; s%:8546%:3446%; s%:6065%:3465%" $HOME/.artelad/config/app.toml
-    echo "export Artela_RPC_PORT=$node_address" >> $HOME/.bash_profile
-    source $HOME/.bash_profile   
+# Download latest chain data snapshot
+curl "https://snapshots-testnet.nodejumper.io/artela-testnet/artela-testnet_latest.tar.lz4" | lz4 -dc - | tar -xf - -C "$HOME/.artelad"
 
-    pm2 start artelad -- start && pm2 save && pm2 startup
-    
-    # 下载快照
-    artelad tendermint unsafe-reset-all --home $HOME/.artelad --keep-addr-book
-    curl https://snapshots-testnet.nodejumper.io/artela-testnet/artela-testnet_latest.tar.lz4 | lz4 -dc - | tar -xf - -C $HOME/.artelad
-    mv $HOME/.artelad/priv_validator_state.json.backup $HOME/.artelad/data/priv_validator_state.json
+# update service file
+sudo tee /etc/systemd/system/artelad.service > /dev/null << EOF
+[Unit]
+Description=Artela node service
+After=network-online.target
+[Service]
+User=$USER
+Environment="LD_LIBRARY_PATH=$HOME/.artelad/libs:\$LD_LIBRARY_PATH"
+ExecStart=$(which artelad) start
+Restart=on-failure
+RestartSec=10
+LimitNOFILE=65535
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
 
-    # 使用 PM2 启动节点进程
+# start the service
+sudo systemctl start artelad
 
-    pm2 restart artelad
-
-    echo '====================== 安装完成,请退出脚本后执行 source $HOME/.bash_profile 以加载环境变量 ==========================='
-    
-}
-install_node;
-source $HOME/.bash_profile
